@@ -1,23 +1,21 @@
 package main
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/hilakatz/library/consts"
-	"github.com/hilakatz/library/controller"
+	"github.com/hilakatz/library/config"
+	"github.com/hilakatz/library/handlers"
 	"github.com/hilakatz/library/routes"
 )
 
 func main() {
-
-	port := consts.PORT
 	router := gin.New()
 
-	router.Use(controller.RequestLogger())
+	router.Use(handlers.RequestLogger)
 
-	routes.BookRoutes(router)
-	routes.SearchRoutes(router)
-	routes.StoreRoutes(router)
+	routes.GetRoutes(router)
 
-	router.Run("localhost:" + port)
-
+	if err := router.Run(fmt.Sprintf("localhost:%s", config.PORT)); err != nil {
+		panic(err)
+	}
 }
