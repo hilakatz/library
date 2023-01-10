@@ -1,31 +1,20 @@
 package handlers
 
 import (
-	"context"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	consts "github.com/hilakatz/library/config"
-	"github.com/hilakatz/library/database"
 	"github.com/hilakatz/library/models"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"log"
+	"github.com/hilakatz/library/service"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 )
 
-var bookCollection *mongo.Collection = database.OpenCollection(database.Client, consts.CollectionName)
-
 var validate = validator.New()
 
 func PutNewBook(c *gin.Context) {
-	var ctx, cancel = context.WithTimeout(context.Background(), consts.HandlerTimeout)
-	defer cancel()
 
 	var book models.Book
 
@@ -40,9 +29,7 @@ func PutNewBook(c *gin.Context) {
 		return
 	}
 
-	book.ID = primitive.NewObjectID()
-
-	result, insertErr := bookCollection.InsertOne(ctx, book)
+	result, insertErr := service.AddBook(*book.Title, *book.AuthorName, *book.Price, book.EbookAvailable, book.PublishDate)
 	if insertErr != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Book item was not created."})
 		return
@@ -52,21 +39,10 @@ func PutNewBook(c *gin.Context) {
 }
 
 func PostBookName(c *gin.Context) {
-	var ctx, cancel = context.WithTimeout(context.Background(), consts.HandlerTimeout)
-	defer cancel()
+	idString := c.Query(consts.ID)
+	title := c.Query(consts.Title)
 
-	opts := options.Update().SetUpsert(false)
-	idString := c.Query("_id")
-	docID, err := primitive.ObjectIDFromHex(idString)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err})
-		return
-	}
-	filter := bson.D{{"_id", docID}}
-	title := c.Query("title")
-	update := bson.D{{"$set", bson.D{{"title", title}}}}
-
-	result, updateErr := bookCollection.UpdateOne(ctx, filter, update, opts)
+	result, updateErr := service.ChangeName(idString, title)
 	if updateErr != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Book item was not updated."})
 		return
@@ -75,23 +51,12 @@ func PostBookName(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No matched book"})
 		return
 	}
-	c.JSON(http.StatusCreated, docID)
+	c.JSON(http.StatusCreated, idString)
 }
 
 func GetBook(c *gin.Context) {
-	var ctx, cancel = context.WithTimeout(context.Background(), consts.HandlerTimeout)
-	defer cancel()
-
-	var result bson.M
-	idString := c.Query("_id")
-	docID, err := primitive.ObjectIDFromHex(idString)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err})
-		return
-	}
-	filter := bson.D{{"_id", docID}}
-
-	findErr := bookCollection.FindOne(ctx, filter).Decode(&result)
+	idString := c.Query(consts.ID)
+	findErr, result := service.FindBook(idString)
 	if findErr != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Book item was not found."})
 		return
@@ -100,18 +65,9 @@ func GetBook(c *gin.Context) {
 }
 
 func DeleteBook(c *gin.Context) {
-	var ctx, cancel = context.WithTimeout(context.Background(), consts.HandlerTimeout)
-	defer cancel()
+	idString := c.Query(consts.ID)
 
-	idString := c.Query("_id")
-	docID, err := primitive.ObjectIDFromHex(idString)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err})
-		return
-	}
-	filter := bson.D{{"_id", docID}}
-
-	result, deleteErr := bookCollection.DeleteOne(ctx, filter)
+	result, deleteErr := service.DeleteBook(idString)
 	if deleteErr != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Book item was not deleted."})
 		return
@@ -120,43 +76,16 @@ func DeleteBook(c *gin.Context) {
 }
 
 func SearchBooks(c *gin.Context) {
-	var ctx, cancel = context.WithTimeout(context.Background(), consts.HandlerTimeout)
-	defer cancel()
 
-	title := c.Query("title")
-	authorName := c.Query("author_name")
-	priceRange := c.Query("price_range")
+	title := c.Query(consts.Title)
+	authorName := c.Query(consts.AuthorName)
+	priceRange := c.Query(consts.PriceRange)
 	priceRangeValues := strings.Split(priceRange, "-")
 
-	filter := bson.M{}
-	if title != "" {
-		filter["title"] = title
-	}
-	if authorName != "" {
-		filter["author_name"] = authorName
-	}
-
-	if len(priceRangeValues) == 2 {
-		priceMin, err := strconv.Atoi(priceRangeValues[0])
-		if err != nil {
-			priceMin = 0
-		}
-
-		priceMax, err := strconv.Atoi(priceRangeValues[1])
-		if err != nil {
-			priceMax = 1000000
-		}
-
-		filter["price"] = bson.M{"$gte": priceMin, "$lte": priceMax}
-	}
-	cur, findErr := bookCollection.Find(ctx, filter)
+	books, findErr := service.FindBooksByParams(title, authorName, priceRangeValues)
 	if findErr != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": findErr.Error()})
 		return
-	}
-	var books []models.Book
-	if findErr = cur.All(ctx, &books); findErr != nil {
-		log.Fatal(findErr)
 	}
 
 	if books == nil {
@@ -168,16 +97,8 @@ func SearchBooks(c *gin.Context) {
 }
 
 func GetInventory(c *gin.Context) {
-	var ctx, cancel = context.WithTimeout(context.Background(), consts.HandlerTimeout)
-	defer cancel()
 
-	filter := bson.D{{}}
-	authorResult, err := bookCollection.Distinct(ctx, "author_name", filter)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	booksResult, err := bookCollection.EstimatedDocumentCount(ctx)
+	authorResult, booksResult, err := service.RetrieveStore()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
