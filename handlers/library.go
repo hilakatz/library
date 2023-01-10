@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	consts "github.com/hilakatz/library/config"
@@ -9,7 +8,6 @@ import (
 	"github.com/hilakatz/library/service"
 	"net/http"
 	"strings"
-	"time"
 )
 
 var validate = validator.New()
@@ -104,22 +102,4 @@ func GetInventory(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"Distinct authors": len(authorResult), "Books": booksResult})
-}
-
-func RequestLogger(c *gin.Context) {
-	var params []string
-	for _, val := range c.Request.URL.Query() {
-		for _, v := range val {
-			params = append(params, v)
-		}
-	}
-	// Print the request details to the log
-	fmt.Printf("%s - %s::%s::%v\n",
-		time.Now().Format(time.RFC3339),
-		c.Request.Method,
-		c.Request.URL.Path,
-		strings.Join(params, `,`),
-	)
-	// Continue with the request
-	c.Next()
 }

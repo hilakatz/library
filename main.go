@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/hilakatz/library/config"
-	"github.com/hilakatz/library/handlers"
+	"github.com/hilakatz/library/middlewares"
 	"github.com/hilakatz/library/routes"
 )
 
 func main() {
 	router := gin.New()
 
-	router.Use(handlers.RequestLogger)
+	router.Use(middlewares.RequestLogger)
 
 	routes.GetRoutes(router)
 
