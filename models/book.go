@@ -13,3 +13,12 @@ type Book struct {
 	EbookAvailable bool               `json:"ebook_available" bson:"ebook_available"`
 	PublishDate    time.Time          `json:"publish_date" bson:"publish_date" validate:"required"`
 }
+
+type Library interface {
+	AddBook(title, authorName string, price float64, ebookAvailable bool, publishDate time.Time) error
+	ChangeName(idString, title string) (int, error)
+	FindBook(idString string) (error, []byte)
+	DeleteBook(idString string) error
+	FindBooksByParams(title, authorName string, priceRangeValues []string) ([]Book, error)
+	RetrieveStore() ([]interface{}, int64, error)
+}

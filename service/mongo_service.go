@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	consts "github.com/hilakatz/library/config"
 	"github.com/hilakatz/library/database"
 	"github.com/hilakatz/library/models"
@@ -14,9 +15,17 @@ import (
 	"time"
 )
 
-var bookCollection *mongo.Collection = database.OpenCollection(database.Client, consts.CollectionName)
+type MongoLibrary struct {
+	bookCollection *mongo.Collection
+}
 
-func AddBook(title, authorName string, price float64, ebookAvailable bool, publishDate time.Time) (*mongo.InsertOneResult, error) {
+func NewMongoLibrary() *MongoLibrary {
+	return &MongoLibrary{
+		bookCollection: database.OpenCollection(database.Client, consts.CollectionName),
+	}
+}
+
+func (m MongoLibrary) AddBook(title, authorName string, price float64, ebookAvailable bool, publishDate time.Time) error {
 	var ctx, cancel = context.WithTimeout(context.Background(), consts.HandlerTimeout)
 	defer cancel()
 
@@ -29,25 +38,28 @@ func AddBook(title, authorName string, price float64, ebookAvailable bool, publi
 		book.PublishDate = publishDate
 		book.EbookAvailable = ebookAvailable
 	}
-	result, insertErr := bookCollection.InsertOne(ctx, book)
-	return result, insertErr
+	_, insertErr := m.bookCollection.InsertOne(ctx, book)
+	return insertErr
 }
 
-func ChangeName(idString, title string) (*mongo.UpdateResult, error) {
+func (m MongoLibrary) ChangeName(idString, title string) (int, error) {
 	var ctx, cancel = context.WithTimeout(context.Background(), consts.HandlerTimeout)
 	defer cancel()
 	opts := options.Update().SetUpsert(false)
 	docID, err := primitive.ObjectIDFromHex(idString)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	filter := bson.D{{"_id", docID}}
 	update := bson.D{{"$set", bson.D{{"title", title}}}}
-	result, updateErr := bookCollection.UpdateOne(ctx, filter, update, opts)
-	return result, updateErr
+	result, updateErr := m.bookCollection.UpdateOne(ctx, filter, update, opts)
+	if result.MatchedCount == 0 {
+		return 0, updateErr
+	}
+	return 1, updateErr
 }
 
-func FindBook(idString string) (error, bson.M) {
+func (m MongoLibrary) FindBook(idString string) (error, []byte) {
 	var ctx, cancel = context.WithTimeout(context.Background(), consts.HandlerTimeout)
 	defer cancel()
 
@@ -58,24 +70,31 @@ func FindBook(idString string) (error, bson.M) {
 	}
 	filter := bson.D{{"_id", docID}}
 
-	findErr := bookCollection.FindOne(ctx, filter).Decode(&result)
-	return findErr, result
+	findErr := m.bookCollection.FindOne(ctx, filter).Decode(&result)
+	if findErr != nil {
+		return findErr, nil
+	}
+	jsonResult, jsonErr := json.Marshal(result)
+	if jsonErr != nil {
+		return jsonErr, nil
+	}
+	return nil, jsonResult
 }
 
-func DeleteBook(idString string) (*mongo.DeleteResult, error) {
+func (m MongoLibrary) DeleteBook(idString string) error {
 	var ctx, cancel = context.WithTimeout(context.Background(), consts.HandlerTimeout)
 	defer cancel()
 
 	docID, err := primitive.ObjectIDFromHex(idString)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	filter := bson.D{{"_id", docID}}
-	result, deleteErr := bookCollection.DeleteOne(ctx, filter)
-	return result, deleteErr
+	_, deleteErr := m.bookCollection.DeleteOne(ctx, filter)
+	return deleteErr
 }
 
-func FindBooksByParams(title, authorName string, priceRangeValues []string) ([]models.Book, error) {
+func (m MongoLibrary) FindBooksByParams(title, authorName string, priceRangeValues []string) ([]models.Book, error) {
 	var ctx, cancel = context.WithTimeout(context.Background(), consts.HandlerTimeout)
 	defer cancel()
 
@@ -100,7 +119,7 @@ func FindBooksByParams(title, authorName string, priceRangeValues []string) ([]m
 
 		filter["price"] = bson.M{"$gte": priceMin, "$lte": priceMax}
 	}
-	cur, findErr := bookCollection.Find(ctx, filter)
+	cur, findErr := m.bookCollection.Find(ctx, filter)
 	if findErr != nil {
 		return nil, findErr
 	}
@@ -113,16 +132,16 @@ func FindBooksByParams(title, authorName string, priceRangeValues []string) ([]m
 
 }
 
-func RetrieveStore() ([]interface{}, int64, error) {
+func (m MongoLibrary) RetrieveStore() ([]interface{}, int64, error) {
 	var ctx, cancel = context.WithTimeout(context.Background(), consts.HandlerTimeout)
 	defer cancel()
 
 	filter := bson.D{{}}
-	authorResult, err := bookCollection.Distinct(ctx, "author_name", filter)
+	authorResult, err := m.bookCollection.Distinct(ctx, "author_name", filter)
 	if err != nil {
 		return nil, 0, err
 	}
-	booksResult, err := bookCollection.EstimatedDocumentCount(ctx)
+	booksResult, err := m.bookCollection.EstimatedDocumentCount(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
