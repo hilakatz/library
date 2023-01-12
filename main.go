@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 
+	errors "github.com/fiverr/go_errors"
+
 	"github.com/hilakatz/library/setup"
 
 	"github.com/gin-gonic/gin"
@@ -24,6 +26,6 @@ func main() {
 	router.Use(middlewares.RequestLogger, gin.Logger())
 	routes.SetRoutes(router, handler)
 	if err := router.Run(fmt.Sprintf("localhost:%s", config.PORT)); err != nil {
-		panic(err)
+		panic(errors.Wrap(err, "failed to attache the router to server"))
 	}
 }

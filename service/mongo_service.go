@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"time"
 
+	errors "github.com/fiverr/go_errors"
+
 	consts "github.com/hilakatz/library/config"
 	queryparams "github.com/hilakatz/library/consts"
 	"github.com/hilakatz/library/database"
@@ -40,7 +42,7 @@ func (m MongoLibrary) AddBook(title, authorName string, price float64, ebookAvai
 		book.EbookAvailable = ebookAvailable
 	}
 	_, insertErr := m.bookCollection.InsertOne(ctx, book)
-	return book.ID.Hex(), insertErr
+	return book.ID.Hex(), errors.Wrap(insertErr, "failed to insert to Mongo")
 }
 
 func (m MongoLibrary) ChangeName(idString, title string) (int, error) {
@@ -50,17 +52,17 @@ func (m MongoLibrary) ChangeName(idString, title string) (int, error) {
 	opts := options.Update().SetUpsert(false)
 	docID, err := primitive.ObjectIDFromHex(idString)
 	if err != nil {
-		return 0, err
+		return 0, errors.Wrap(err, "failed to convert - not valid ObjectID")
 	}
 
 	filter := bson.D{{queryparams.ID, docID}}
 	update := bson.D{{"$set", bson.D{{queryparams.Title, title}}}}
 	result, updateErr := m.bookCollection.UpdateOne(ctx, filter, update, opts)
 	if result.MatchedCount == 0 {
-		return 0, updateErr
+		return 0, errors.Wrap(updateErr, "failed to update Mongo")
 	}
 
-	return 1, updateErr
+	return 1, errors.Wrap(updateErr, "failed to update Mongo")
 }
 
 func (m MongoLibrary) FindBook(idString string) (models.Book, error) {
@@ -70,13 +72,13 @@ func (m MongoLibrary) FindBook(idString string) (models.Book, error) {
 	var book models.Book
 	docID, err := primitive.ObjectIDFromHex(idString)
 	if err != nil {
-		return models.Book{}, err
+		return models.Book{}, errors.Wrap(err, "failed to convert - not valid ObjectID")
 	}
 
 	filter := bson.D{{queryparams.ID, docID}}
 	findErr := m.bookCollection.FindOne(ctx, filter).Decode(&book)
 	if findErr != nil {
-		return models.Book{}, findErr
+		return models.Book{}, errors.Wrap(findErr, "failed to find Document in Mongo")
 	}
 
 	return book, nil
@@ -88,12 +90,12 @@ func (m MongoLibrary) DeleteBook(idString string) error {
 
 	docID, err := primitive.ObjectIDFromHex(idString)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to convert - not valid ObjectID")
 	}
 
 	filter := bson.D{{queryparams.ID, docID}}
 	_, deleteErr := m.bookCollection.DeleteOne(ctx, filter)
-	return deleteErr
+	return errors.Wrap(deleteErr, "failed to delete document from Mongo")
 }
 
 func (m MongoLibrary) FindBooksByParams(title, authorName string, priceRangeValues []string) ([]models.Book, error) {
@@ -121,12 +123,12 @@ func (m MongoLibrary) FindBooksByParams(title, authorName string, priceRangeValu
 
 	cur, findErr := m.bookCollection.Find(ctx, filter)
 	if findErr != nil {
-		return nil, findErr
+		return nil, errors.Wrap(findErr, "failed to find Documents in Mongo")
 	}
 
 	var books []models.Book
 	if findErr = cur.All(ctx, &books); findErr != nil {
-		log.Fatal(findErr)
+		log.Fatal(errors.Wrap(findErr, "failed to find Documents in Mongo"))
 	}
 
 	return books, nil
@@ -139,12 +141,12 @@ func (m MongoLibrary) RetrieveStore() (int, int, error) {
 	filter := bson.D{{}}
 	authorResult, err := m.bookCollection.Distinct(ctx, queryparams.AuthorName, filter)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, errors.Wrap(err, "failed to find Documents in Mongo")
 	}
 
 	booksResult, err := m.bookCollection.EstimatedDocumentCount(ctx)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, errors.Wrap(err, "failed to find Documents count in Mongo")
 	}
 
 	return len(authorResult), int(booksResult), nil
