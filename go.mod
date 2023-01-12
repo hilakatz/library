@@ -34,3 +34,5 @@ require (
 	golang.org/x/text v0.3.7 // indirect
 	gopkg.in/yaml.v2 v2.2.8 // indirect
 )
+
+require github.com/fiverr/go_errors v0.0.0-20180916145305-2d17b1dc928c // indirect

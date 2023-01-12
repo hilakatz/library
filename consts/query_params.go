@@ -6,4 +6,5 @@ const (
 	Title      = "title"
 	AuthorName = "author_name"
 	PriceRange = "price_range"
+	Price      = "price"
 )

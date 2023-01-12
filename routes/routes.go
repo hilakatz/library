@@ -5,7 +5,7 @@ import (
 	"github.com/hilakatz/library/handlers"
 )
 
-func GetRoutes(incomingRoutes *gin.Engine, handler handlers.Handler) {
+func SetRoutes(incomingRoutes *gin.Engine, handler handlers.Handler) {
 	books := incomingRoutes.Group("/books")
 	{
 		books.PUT("", handler.PutNewBook)
@@ -13,10 +13,12 @@ func GetRoutes(incomingRoutes *gin.Engine, handler handlers.Handler) {
 		books.GET("", handler.GetBook)
 		books.DELETE("", handler.DeleteBook)
 	}
+
 	search := incomingRoutes.Group("/search")
 	{
 		search.GET("", handler.SearchBooks)
 	}
+
 	store := incomingRoutes.Group("/store")
 	{
 		store.GET("", handler.GetInventory)
