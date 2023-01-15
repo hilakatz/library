@@ -19,7 +19,8 @@ func main() {
 	if err := setup.Setup(); err != nil {
 		panic(err)
 	}
-	mongo := service.NewMongoLibrary(setup.Client)
+
+	mongo := service.NewMongoLibrary(setup.MongoClient)
 	handler := handlers.NewHandler(mongo)
 
 	router := gin.New()

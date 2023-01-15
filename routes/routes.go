@@ -7,21 +7,24 @@ import (
 
 func SetRoutes(incomingRoutes *gin.Engine, handler handlers.Handler) {
 	api := incomingRoutes.Group("/api")
-	books := api.Group("/books")
 	{
-		books.PUT("/", handler.PutNewBook)
-		books.POST("/:id", handler.PostBookName)
-		books.GET("/:id", handler.GetBook)
-		books.DELETE("/:id", handler.DeleteBook)
-	}
+		books := api.Group("/books")
+		{
+			books.PUT("/", handler.PutNewBook)
+			books.POST("/:id", handler.PostBookName)
+			books.GET("/:id", handler.GetBook)
+			books.DELETE("/:id", handler.DeleteBook)
+		}
 
-	search := api.Group("/search")
-	{
-		search.GET("/", handler.SearchBooks)
-	}
+		search := api.Group("/search")
+		{
+			search.GET("/", handler.SearchBooks)
+		}
 
-	store := api.Group("/store")
-	{
-		store.GET("/", handler.GetInventory)
+		store := api.Group("/store")
+		{
+			store.GET("/", handler.GetInventory)
+		}
+
 	}
 }

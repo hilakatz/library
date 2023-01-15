@@ -27,22 +27,22 @@ func (handler Handler) PutNewBook(c *gin.Context) {
 		return
 	}
 
-	ID, insertErr := handler.library.AddBook(book.Title, book.AuthorName, book.Price, book.EbookAvailable, book.PublishDate)
-	if insertErr != nil {
-		c.AbortWithError(http.StatusInternalServerError, insertErr)
+	ID, err := handler.library.AddBook(book.Title, book.AuthorName, book.Price, book.EbookAvailable, book.PublishDate)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"_id": ID})
+	c.JSON(http.StatusCreated, gin.H{"id": ID})
 }
 
 func (handler Handler) PostBookName(c *gin.Context) {
 	idString := c.Param("id")
 	title := c.Query(consts.Title)
 
-	_, updateErr := handler.library.ChangeName(idString, title)
-	if updateErr != nil {
-		c.AbortWithError(http.StatusInternalServerError, updateErr)
+	_, err := handler.library.ChangeName(idString, title)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
@@ -51,9 +51,9 @@ func (handler Handler) PostBookName(c *gin.Context) {
 
 func (handler Handler) GetBook(c *gin.Context) {
 	idString := c.Param("id")
-	result, findErr := handler.library.FindBook(idString)
-	if findErr != nil {
-		c.AbortWithError(http.StatusInternalServerError, findErr)
+	result, err := handler.library.FindBook(idString)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
@@ -63,9 +63,9 @@ func (handler Handler) GetBook(c *gin.Context) {
 func (handler Handler) DeleteBook(c *gin.Context) {
 	idString := c.Param("id")
 
-	deleteErr := handler.library.DeleteBook(idString)
-	if deleteErr != nil {
-		c.AbortWithError(http.StatusInternalServerError, deleteErr)
+	err := handler.library.DeleteBook(idString)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
@@ -90,14 +90,14 @@ func (handler Handler) SearchBooks(c *gin.Context) {
 		}
 	}
 
-	books, findErr := handler.library.FindBooksByParams(title, authorName, priceMin, priceMax)
-	if findErr != nil {
-		c.AbortWithError(http.StatusInternalServerError, findErr)
+	books, err := handler.library.FindBooksByParams(title, authorName, priceMin, priceMax)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
 	if books == nil {
-		c.AbortWithError(http.StatusNotFound, findErr)
+		c.AbortWithError(http.StatusNotFound, err)
 		return
 	}
 

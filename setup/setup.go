@@ -5,11 +5,11 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-var Client *mongo.Client
+var MongoClient *mongo.Client
 
 func Setup() error {
 	var err error
-	Client, err = database.ConnectDB()
+	MongoClient, err = database.ConnectDB()
 
 	return err
 }
