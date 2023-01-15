@@ -25,6 +25,5 @@ func SetRoutes(incomingRoutes *gin.Engine, handler handlers.Handler) {
 		{
 			store.GET("/", handler.GetInventory)
 		}
-
 	}
 }
