@@ -6,21 +6,22 @@ import (
 )
 
 func SetRoutes(incomingRoutes *gin.Engine, handler handlers.Handler) {
-	books := incomingRoutes.Group("/books")
+	api := incomingRoutes.Group("/api")
+	books := api.Group("/books")
 	{
-		books.PUT("", handler.PutNewBook)
-		books.POST("", handler.PostBookName)
-		books.GET("", handler.GetBook)
-		books.DELETE("", handler.DeleteBook)
+		books.PUT("/", handler.PutNewBook)
+		books.POST("/:id", handler.PostBookName)
+		books.GET("/:id", handler.GetBook)
+		books.DELETE("/:id", handler.DeleteBook)
 	}
 
-	search := incomingRoutes.Group("/search")
+	search := api.Group("/search")
 	{
-		search.GET("", handler.SearchBooks)
+		search.GET("/", handler.SearchBooks)
 	}
 
-	store := incomingRoutes.Group("/store")
+	store := api.Group("/store")
 	{
-		store.GET("", handler.GetInventory)
+		store.GET("/", handler.GetInventory)
 	}
 }

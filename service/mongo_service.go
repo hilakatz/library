@@ -2,8 +2,8 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log"
-	"strconv"
 	"time"
 
 	errors "github.com/fiverr/go_errors"
@@ -34,15 +34,19 @@ func (m MongoLibrary) AddBook(title, authorName string, price float64, ebookAvai
 
 	var book models.Book
 	{
-		book.ID = primitive.NewObjectID()
 		book.Title = title
 		book.AuthorName = authorName
 		book.Price = price
 		book.PublishDate = publishDate
 		book.EbookAvailable = ebookAvailable
 	}
-	_, insertErr := m.bookCollection.InsertOne(ctx, book)
-	return book.ID.Hex(), errors.Wrap(insertErr, "failed to insert to Mongo")
+
+	InsertOneResult, insertErr := m.bookCollection.InsertOne(ctx, book)
+	if insertErr != nil {
+		return "", errors.Wrap(insertErr, "failed to insert to Mongo")
+	}
+
+	return fmt.Sprintf("%v", InsertOneResult.InsertedID), nil
 }
 
 func (m MongoLibrary) ChangeName(idString, title string) (int, error) {
@@ -62,7 +66,7 @@ func (m MongoLibrary) ChangeName(idString, title string) (int, error) {
 		return 0, errors.Wrap(updateErr, "failed to update Mongo")
 	}
 
-	return 1, errors.Wrap(updateErr, "failed to update Mongo")
+	return 1, nil
 }
 
 func (m MongoLibrary) FindBook(idString string) (models.Book, error) {
@@ -94,11 +98,14 @@ func (m MongoLibrary) DeleteBook(idString string) error {
 	}
 
 	filter := bson.D{{queryparams.ID, docID}}
-	_, deleteErr := m.bookCollection.DeleteOne(ctx, filter)
-	return errors.Wrap(deleteErr, "failed to delete document from Mongo")
+	result, deleteErr := m.bookCollection.DeleteOne(ctx, filter)
+	if result.DeletedCount == 0 {
+		return errors.Wrap(deleteErr, "failed to delete document from Mongo")
+	}
+	return nil
 }
 
-func (m MongoLibrary) FindBooksByParams(title, authorName string, priceRangeValues []string) ([]models.Book, error) {
+func (m MongoLibrary) FindBooksByParams(title, authorName string, priceMin, priceMax float64) ([]models.Book, error) {
 	var ctx, cancel = context.WithTimeout(context.Background(), consts.HandlerTimeout)
 	defer cancel()
 
@@ -109,17 +116,7 @@ func (m MongoLibrary) FindBooksByParams(title, authorName string, priceRangeValu
 	if authorName != "" {
 		filter[queryparams.AuthorName] = authorName
 	}
-	if len(priceRangeValues) == 2 {
-		priceMin, err := strconv.Atoi(priceRangeValues[0])
-		if err != nil {
-			priceMin = 0
-		}
-		priceMax, err := strconv.Atoi(priceRangeValues[1])
-		if err != nil {
-			priceMax = 1000000
-		}
-		filter[queryparams.Price] = bson.M{"$gte": priceMin, "$lte": priceMax}
-	}
+	filter[queryparams.Price] = bson.M{"$gte": priceMin, "$lte": priceMax}
 
 	cur, findErr := m.bookCollection.Find(ctx, filter)
 	if findErr != nil {
